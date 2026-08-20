@@ -1,0 +1,23 @@
+
+#!/usr/bin/env bash
+set -e
+
+export FIFTYONE_API_URI=https://reverse-fashion-api.fiftyone.ai
+export FIFTYONE_API_KEY=6a845df30ffb0e164ebe93a1|phrOiupiuEItQXfFT1v8KO0zN3Buobqim2IwZUzcJRI
+
+# Install uv if not present
+if ! command -v uv &> /dev/null; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
+# Sync the project (creates .venv with fiftyone and deps from pyproject.toml)
+uv sync
+
+# Install ipykernel into the venv
+uv pip install ipykernel
+
+# Register the kernel for Jupyter
+uv run python -m ipykernel install --user --name reverse-fashion --display-name "Python (reverse-fashion)"
+
+echo "Done. Kernel 'Python (reverse-fashion)' is now available in Jupyter."

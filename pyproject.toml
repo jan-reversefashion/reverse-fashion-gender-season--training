@@ -1,0 +1,20 @@
+[project]
+name = "reverse-fashion-gender-season-training"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy<2.0",
+    "fiftyone==2.23.1",
+    "torch>=2.0",
+    "torchvision>=0.15",
+]
+
+[tool.uv.sources]
+fiftyone = { index = "fiftyone" }
+
+[[tool.uv.index]]
+name = "fiftyone"
+url = "https://b597f85d794129fe@pypi.fiftyone.ai"
+explicit = true
