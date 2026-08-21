@@ -1,10 +1,8 @@
 import boto3
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from io import BytesIO
 from PIL import Image
-from torch.amp import GradScaler, autocast
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models
 
@@ -80,83 +78,24 @@ def build_dataloaders(sample_data, val_split, image_size, batch_size, num_worker
     return train_loader, val_loader, train_size, val_size
 
 
-def build_resnet50(num_classes, device, compile_model=True):
+def build_resnet50(num_classes, device):
     model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
-    model = model.to(device)
-    if compile_model:
-        model = torch.compile(model)
-    return model
+    return model.to(device)
 
 
-def lr_range_test(model, loader, criterion, device, num_batches=100, start_lr=1e-7, end_lr=1e-1):
-    """Run an LR range test and return suggested base_lr and max_lr for cyclic schedule."""
-    optimizer = optim.SGD(model.parameters(), lr=start_lr, momentum=0.9)
-    lr_mult = (end_lr / start_lr) ** (1 / num_batches)
-    use_amp = device.type == "cuda"
-
-    lrs, losses = [], []
-    running_loss = 0.0
-    best_loss = float("inf")
-    batch_iter = iter(loader)
-
-    model.train()
-    for i in range(num_batches):
-        try:
-            images, labels = next(batch_iter)
-        except StopIteration:
-            batch_iter = iter(loader)
-            images, labels = next(batch_iter)
-
-        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
-        optimizer.zero_grad(set_to_none=True)
-        with autocast("cuda", enabled=use_amp):
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-
-        smoothed = 0.98 * running_loss + 0.02 * loss.item() if i > 0 else loss.item()
-        running_loss = smoothed
-        corrected = smoothed / (1 - 0.98 ** (i + 1))
-
-        lrs.append(optimizer.param_groups[0]["lr"])
-        losses.append(corrected)
-
-        if corrected < best_loss:
-            best_loss = corrected
-
-        if corrected > best_loss * 4:
-            break
-
-        for pg in optimizer.param_groups:
-            pg["lr"] *= lr_mult
-
-    min_loss_idx = losses.index(min(losses))
-    max_lr = lrs[min_loss_idx]
-    base_lr = max_lr / 10
-    return base_lr, max_lr
-
-
-def train_one_epoch(model, loader, criterion, optimizer, device, scheduler=None, scaler=None):
+def train_one_epoch(model, loader, criterion, optimizer, device, scheduler=None):
     model.train()
     running_loss = 0.0
     correct = 0
     total = 0
-    use_amp = device.type == "cuda"
     for images, labels in loader:
-        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
-        optimizer.zero_grad(set_to_none=True)
-        with autocast("cuda", enabled=use_amp):
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-        if scaler is not None:
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-        else:
-            loss.backward()
-            optimizer.step()
+        images, labels = images.to(device), labels.to(device)
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
         if scheduler is not None:
             scheduler.step()
         running_loss += loss.item() * images.size(0)
@@ -171,13 +110,11 @@ def validate(model, loader, criterion, device):
     running_loss = 0.0
     correct = 0
     total = 0
-    use_amp = device.type == "cuda"
     with torch.no_grad():
         for images, labels in loader:
-            images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
-            with autocast("cuda", enabled=use_amp):
-                outputs = model(images)
-                loss = criterion(outputs, labels)
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
             running_loss += loss.item() * images.size(0)
             _, predicted = outputs.max(1)
             total += labels.size(0)
@@ -187,11 +124,10 @@ def validate(model, loader, criterion, device):
 
 def train(model, train_loader, val_loader, criterion, optimizer, scheduler,
           device, num_epochs, class_to_idx, target_field, save_dir="."):
-    scaler = GradScaler("cuda", enabled=(device.type == "cuda"))
     best_val_acc = 0.0
     for epoch in range(num_epochs):
-        print(f'Training epoch {epoch+1}/{num_epochs}')
-        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device, scheduler, scaler)
+        print('train first epoch')
+        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device, scheduler)
         val_loss, val_acc = validate(model, val_loader, criterion, device)
 
         print(f"Epoch {epoch+1}/{num_epochs} | "

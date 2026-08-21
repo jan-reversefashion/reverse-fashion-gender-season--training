@@ -2,8 +2,8 @@
 #!/usr/bin/env bash
 set -e
 
-export FIFTYONE_API_URI=https://reverse-fashion-api.fiftyone.ai
-export FIFTYONE_API_KEY=6a845df30ffb0e164ebe93a1|phrOiupiuEItQXfFT1v8KO0zN3Buobqim2IwZUzcJRI
+export FIFTYONE_API_URI="https://reverse-fashion-api.fiftyone.ai"
+export FIFTYONE_API_KEY="6a845df30ffb0e164ebe93a1|phrOiupiuEItQXfFT1v8KO0zN3Buobqim2IwZUzcJRI"
 
 # Install uv if not present
 if ! command -v uv &> /dev/null; then
