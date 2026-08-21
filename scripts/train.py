@@ -169,9 +169,10 @@ def validate(model, loader, criterion, device):
 def main():
     args = parse_args()
     torch.manual_seed(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if device.type == "cuda":
-        torch.backends.cudnn.benchmark = True
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA GPU required but not available")
+    device = torch.device("cuda")
+    torch.backends.cudnn.benchmark = True
     print(f"Device: {device}")
 
     # Load dataset
