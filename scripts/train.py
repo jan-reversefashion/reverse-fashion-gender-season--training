@@ -1,6 +1,6 @@
 """Train a ResNet-50 classifier on a local ImageFolder dataset.
 
-Includes automatic cyclic LR range finding and logs loss/speed every 20 batches.
+Includes automatic cyclic LR range finding and logs loss/speed every 100 batches.
 
 Usage:
     uv run scripts/train.py --data /home/sagemaker-user/user-default-efs/data/sellpy2
@@ -186,8 +186,9 @@ def main():
     train_dataset, val_dataset = random_split(
         full_dataset, [train_size, val_size], generator=torch.Generator().manual_seed(args.seed)
     )
-    # Apply val transforms to val split
-    val_dataset.dataset = datasets.ImageFolder(data_dir, transform=get_transforms(args.image_size, train=False))
+    # Use a separate dataset with val transforms so train augmentations are not overwritten
+    val_full_dataset = datasets.ImageFolder(data_dir, transform=get_transforms(args.image_size, train=False))
+    val_dataset = torch.utils.data.Subset(val_full_dataset, val_dataset.indices)
 
     pin = torch.cuda.is_available()
     persistent = args.workers > 0

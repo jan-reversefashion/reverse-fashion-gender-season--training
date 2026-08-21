@@ -14,12 +14,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
 
 os.environ.setdefault("FIFTYONE_API_URI", "https://reverse-fashion-api.fiftyone.ai")
-os.environ.setdefault(
-    "FIFTYONE_API_KEY",
-    "6a845df30ffb0e164ebe93a1|phrOiupiuEItQXfFT1v8KO0zN3Buobqim2IwZUzcJRI",
-)
+if "FIFTYONE_API_KEY" not in os.environ:
+    raise EnvironmentError("Set FIFTYONE_API_KEY in .env or as an environment variable")
 
 import fiftyone as fo
 

@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy<2.0",
     "fiftyone==2.23.1",
+    "python-dotenv",
     "torch>=2.0",
     "torchvision>=0.15",
 ]
